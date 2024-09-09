@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>player</title>
+    <script src="./instant-player.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+
+      .container {
+        height: 100%;
+      }
+
+      .container div {
+        height: 100%;
+      }
+
+      video {
+        height: 100%;
+      }
+      #phone_video {
+        height: 800px!important;
+        position: relative;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="palyerContainer" class="container-fluid" style="margin-left: 20px">
+      <div class="row">
+          <button type="button" onclick="home()">Home</button>
+          <button type="button" onclick="menu()">菜单</button>
+          <button type="button" onclick="back()">返回</button>
+          <button type="button" onclick="capture()">截图</button>
+          <button id="videostatus" type="button">连接中。。。</button>
+      </div>
+      <div style="height: 10px"></div>
+      <div class="row" style="display: flex;flex-direction: row">
+          <div id="phone_video">
+              <video autoplay muted id="video_display"></video>
+          </div>
+          <div style="flex: 1;margin-left: 20px">
+             <img id="capture" src="" style="max-width: 400px">
+          </div>
+      </div>
+  </div>
+    <script>
+      // 实例化
+      let adminkey = "1234";
+      let device_id = 576;
+      let address = '1234';
+      let display = document.getElementById("video_display");
+      const data = {
+        device_id: device_id,
+        test_id_str: "0",
+        controlkey: "",
+        adminkey: adminkey,
+      };
+      let player = new InstantPlayer(
+        address,
+        display,
+        data
+      );
+      // demo：可以拦截webvideo player的封装，接收消息
+      setTimeout(() => {
+        let _onMessage = player.socket.onMessage;
+        let _onClose = player.socket.onClose;
+        player.socket.onMessage = function(event) {
+          _onMessage(event);
+          const messageData = new Uint8Array(event.data);
+          // 0 视频流数据, 2截图数据，1旋转数据
+          // 拦截截图数据
+          if (messageData[0] == 2) {
+            console.log("get capture image")
+            var dataView = new DataView(messageData.buffer, 1, 8);
+            var jpgTime = dataView.getUint32(0);
+            var jpgLen = dataView.getUint32(4);
+            var blobData = new Blob([new Uint8Array(messageData.buffer, 9, jpgLen)], { type: 'image/jpeg' });
+            var jpgURL = URL.createObjectURL(blobData);
+            var jstime = new Date(jpgTime * 1000);
+            window.document.getElementById("capture").src = jpgURL;
+          } else if(messageData[0] == 1) { // 屏幕旋转
+          }
+        }
+      }, 1000);
+      // demo：可以通过player操作设备
+      function home() {
+        player.control("home");
+      }
+      function menu() {
+          player.control("menu");
+      }
+      // 返回按钮
+      function back() {
+          player.control("back");
+      }
+      // 截图
+      function capture() {
+          let req = {
+              cmd: "capture",
+              web_req_time: Date.now(),
+              device_id: device_id,
+          };
+          player.socket.sendCommand(req);
+      }
+
+    </script>
+  </body>
+</html>
